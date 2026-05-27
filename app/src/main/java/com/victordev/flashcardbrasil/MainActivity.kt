@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-       // handleImportIntent(intent)
+        handleImportIntent(intent)
         // Garante que o layout ocupe a tela toda corretamente
 
         setContent {
@@ -125,11 +125,27 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun decodeBase64(data: String): ByteArray {
-        return runCatching {
-            Base64.decode(data, Base64.DEFAULT)
-        }.getOrElse {
-            Base64.decode(data, Base64.URL_SAFE or Base64.NO_WRAP)
+        val normalizedData = data.trim()
+        val isBase64Url = normalizedData.any { it == '-' || it == '_' }
+
+        val flags = if (isBase64Url) {
+            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
+        } else {
+            Base64.DEFAULT
         }
+
+        val valueToDecode = if (isBase64Url) {
+            normalizedData
+        } else {
+            normalizedData.replace(' ', '+')
+        }.withBase64Padding()
+
+        return Base64.decode(valueToDecode, flags)
+    }
+
+    private fun String.withBase64Padding(): String {
+        val missingPadding = (4 - length % 4) % 4
+        return this + "=".repeat(missingPadding)
     }
 
     companion object {
