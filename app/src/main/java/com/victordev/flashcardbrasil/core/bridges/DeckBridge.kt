@@ -43,4 +43,15 @@ class DeckBridge(
         }
     }
 
+    @JavascriptInterface
+    fun deleteDeck(deckId: String) : Boolean = runBlocking {
+        try {
+            service.deleteDeck(deckId)
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
 }

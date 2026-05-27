@@ -67,6 +67,18 @@ class CardsBridge(private val cardService: CardService) {
             }
         }
     }
+
+    @JavascriptInterface
+    fun deleteCard(deckId: String, cardId: String) : Boolean {
+        return try {
+            runBlocking {
+                cardService.deleteCard(deckId, cardId)
+                true
+            }
+        } catch (e: Exception) {
+            false
+        }
+    }
 }
 
 data class CardRateDTO(

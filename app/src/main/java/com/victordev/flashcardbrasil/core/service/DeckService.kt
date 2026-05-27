@@ -12,6 +12,15 @@ import java.util.UUID
 
 class DeckService(private val db: AppDatabase) {
 
+    suspend fun deleteDeck(deckId : String) : Boolean {
+        return try {
+            db.cardDao().deleteCardsByDeckId(deckId)
+            val res = db.deckDao().deleteDeckById(deckId)
+            res > 0
+        } catch (e: Exception){
+            false
+        }
+    }
     suspend fun createDeck(titulo: String, metodoRevisao: String): String {
         validate(titulo, metodoRevisao)
 

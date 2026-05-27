@@ -1,6 +1,7 @@
 package com.victordev.flashcardbrasil.dao
 
 import androidx.room.Dao
+import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
@@ -30,4 +31,10 @@ interface DeckDao {
         ORDER BY d.criadoEm DESC
     """)
     suspend fun getAllDecksWithPendingCount(hoje: Int) : List<DeckDTO>
+
+    @Query("DELETE FROM decks WHERE flashcardId = :deckId")
+    suspend fun deleteDeckById(deckId: String) : Int
+
+    @Query("UPDATE decks SET qtdCartoes = (SELECT COUNT(*) FROM cards WHERE flashcardId = :deckId)")
+    suspend fun updateDeckCardsCount(deckId: String)
 }

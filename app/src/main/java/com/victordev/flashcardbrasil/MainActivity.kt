@@ -1,6 +1,9 @@
 package com.victordev.flashcardbrasil
 
+import android.content.Intent
 import android.os.Bundle
+import android.util.Base64
+import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
@@ -30,11 +33,14 @@ import com.victordev.flashcardbrasil.core.AppInitializer
 import com.victordev.flashcardbrasil.core.InitResult
 import com.victordev.flashcardbrasil.core.bridges.GuestBridge
 import com.victordev.flashcardbrasil.core.service.GuestService
+import java.io.ByteArrayInputStream
+import java.util.zip.GZIPInputStream
 
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+       // handleImportIntent(intent)
         // Garante que o layout ocupe a tela toda corretamente
 
         setContent {
@@ -73,7 +79,7 @@ class MainActivity : ComponentActivity() {
 
                 else -> {
                     val url = if (BuildConfig.DEBUG) {
-                        "http://192.168.1.103:4200"
+                        "http://192.168.1.104:4200"
                     } else {
                         "file://${filesDir.absolutePath}/www/index.html"
                     }
@@ -82,6 +88,53 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleImportIntent(intent)
+    }
+
+    private fun handleImportIntent(intent: Intent?) {
+        val uri = intent?.data ?: return
+
+        if (uri.scheme != "flashcardsbrasil" || uri.host != "import") {
+            return
+        }
+
+        val encodedData = uri.getQueryParameter("data")
+        if (encodedData.isNullOrBlank()) {
+            Log.w(TAG, "Deep link de importacao recebido sem parametro data: $uri")
+            return
+        }
+
+        runCatching {
+            val compressedBytes = decodeBase64(encodedData)
+            val importedData = GZIPInputStream(ByteArrayInputStream(compressedBytes)).use {
+                it.readBytes().toString(Charsets.UTF_8)
+            }
+
+            Log.d(TAG, "Dados importados recebidos (${importedData.length} caracteres):")
+            importedData.chunked(LOG_CHUNK_SIZE).forEach { chunk ->
+                Log.d(TAG, chunk)
+            }
+        }.onFailure { error ->
+            Log.e(TAG, "Falha ao processar deep link de importacao: $uri", error)
+        }
+    }
+
+    private fun decodeBase64(data: String): ByteArray {
+        return runCatching {
+            Base64.decode(data, Base64.DEFAULT)
+        }.getOrElse {
+            Base64.decode(data, Base64.URL_SAFE or Base64.NO_WRAP)
+        }
+    }
+
+    companion object {
+        private const val TAG = "FlashcardImport"
+        private const val LOG_CHUNK_SIZE = 3_000
     }
 
 }

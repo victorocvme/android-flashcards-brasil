@@ -46,6 +46,11 @@ class CardService (private val db: AppDatabase) {
         cardDao.getCards(deckId)
     }
 
+    suspend fun deleteCard(deckId: String, cardId: String) {
+        cardDao.deleteCard(deckId, cardId)
+        deckDao.updateDeckCardsCount(deckId)
+    }
+
     suspend fun updateCardReview(cardId: String, grade: Int) = withContext(Dispatchers.IO) {
         // 1. Busca o card atual no banco
         val card = cardDao.getCardById(cardId) ?: return@withContext

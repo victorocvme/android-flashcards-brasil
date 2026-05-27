@@ -4,7 +4,7 @@
     <selectionStates>
       <SelectionState runConfigName="FlashCardForDevelopersApp">
         <option name="selectionMode" value="DROPDOWN" />
-        <DropdownSelection timestamp="2026-05-01T13:33:42.817120300Z">
+        <DropdownSelection timestamp="2026-05-23T00:03:09.841171Z">
           <Target type="DEFAULT_BOOT">
             <handle>
               <DeviceId pluginId="PhysicalDevice" identifier="serial=5b6a69ed" />

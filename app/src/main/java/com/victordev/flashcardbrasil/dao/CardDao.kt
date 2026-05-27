@@ -25,6 +25,9 @@ interface CardDao {
     @Query("SELECT * FROM cards WHERE flashCardId = :deckId")
     suspend fun getCards(deckId: String) : List<CardEntity>
 
+    @Query("DELETE FROM cards WHERE cardId = :cardId and flashCardId = :deckId")
+    suspend fun deleteCard(deckId: String, cardId: String)
+
     @Transaction
     suspend fun updateReview(card: CardEntity, deckId: String) {
         updateCard(card)
@@ -33,4 +36,6 @@ interface CardDao {
     @Query("UPDATE decks SET qtdCartoes = qtdCartoes + 1 WHERE flashcardId = :deckId")
     suspend fun incrementCardCount(deckId: String)
 
+    @Query("DELETE FROM cards WHERE flashCardId = :deckId")
+    suspend fun deleteCardsByDeckId(deckId: String)
 }
