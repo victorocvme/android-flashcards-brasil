@@ -50,6 +50,21 @@ class DeckService(private val db: AppDatabase) {
         return db.deckDao().getAllDecksWithPendingCount(hoje)
     }
 
+    suspend fun importDecks(decks: List<DeckEntity>): Int {
+        decks.forEach { deck ->
+            if (deck.flashcardId.isBlank()) {
+                throw Exception("ID do deck nao pode ser vazio")
+            }
+
+            validate(deck.titulo, deck.metodoRevisao)
+        }
+
+        return withContext(Dispatchers.IO) {
+            db.deckDao().upsertDecks(decks)
+            decks.size
+        }
+    }
+
     private fun validate(titulo: String, metodoRevisao: String) {
         if (titulo.length > 60) {
             throw Exception("Título não pode ser maior que 60")

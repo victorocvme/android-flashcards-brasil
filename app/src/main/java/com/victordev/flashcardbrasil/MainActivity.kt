@@ -2,8 +2,6 @@ package com.victordev.flashcardbrasil
 
 import android.content.Intent
 import android.os.Bundle
-import android.util.Base64
-import android.util.Log
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.activity.ComponentActivity
@@ -18,6 +16,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.lifecycleScope
 import androidx.room.Room
 import com.victordev.flashcardbrasil.core.bridges.CardsBridge
 import com.victordev.flashcardbrasil.core.bridges.EmptyBridge
@@ -32,11 +31,31 @@ import androidx.compose.runtime.setValue
 import com.victordev.flashcardbrasil.core.AppInitializer
 import com.victordev.flashcardbrasil.core.InitResult
 import com.victordev.flashcardbrasil.core.bridges.GuestBridge
+import com.victordev.flashcardbrasil.core.importing.FlashcardPayloadImporter
+import com.victordev.flashcardbrasil.core.importing.FlashcardQrImportHandler
+import com.victordev.flashcardbrasil.core.importing.QrImportResult
 import com.victordev.flashcardbrasil.core.service.GuestService
-import java.io.ByteArrayInputStream
-import java.util.zip.GZIPInputStream
+import com.victordev.flashcardbrasil.core.webview.WebViewNotifier
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
+
+    private val webViewNotifier = WebViewNotifier()
+
+    private val importHandler by lazy {
+        val db = Room.databaseBuilder(
+            this,
+            AppDatabase::class.java,
+            "flashcards-db"
+        ).fallbackToDestructiveMigration(true).build()
+
+        FlashcardQrImportHandler(
+            FlashcardPayloadImporter(
+                deckService = DeckService(db),
+                cardService = CardService(db)
+            )
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -79,12 +98,16 @@ class MainActivity : ComponentActivity() {
 
                 else -> {
                     val url = if (BuildConfig.DEBUG) {
-                        "http://192.168.1.104:4200"
+                        "http://192.168.1.106:4200"
                     } else {
                         "file://${filesDir.absolutePath}/www/index.html"
                     }
 
-                    WebViewScreen(url)
+                    WebViewScreen(
+                        url = url,
+                        onWebViewCreated = ::onWebViewCreated,
+                        onPageLoaded = ::onWebViewPageLoaded
+                    )
                 }
             }
         }
@@ -97,76 +120,73 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleImportIntent(intent: Intent?) {
-        val uri = intent?.data ?: return
+        lifecycleScope.launch {
+            val result = importHandler.handle(intent)
+            when (result) {
+                is QrImportResult.Success -> {
+                    webViewNotifier.showWebNotification(
+                        message = successMessageFor(result.importResult.type),
+                        variant = "success"
+                    )
+                }
 
-        if (uri.scheme != "flashcardsbrasil" || uri.host != "import") {
-            return
-        }
+                is QrImportResult.Failure -> {
+                    webViewNotifier.showWebNotification(
+                        message = result.message,
+                        variant = "error"
+                    )
+                }
 
-        val encodedData = uri.getQueryParameter("data")
-        if (encodedData.isNullOrBlank()) {
-            Log.w(TAG, "Deep link de importacao recebido sem parametro data: $uri")
-            return
-        }
-
-        runCatching {
-            val compressedBytes = decodeBase64(encodedData)
-            val importedData = GZIPInputStream(ByteArrayInputStream(compressedBytes)).use {
-                it.readBytes().toString(Charsets.UTF_8)
+                null -> Unit
             }
-
-            Log.d(TAG, "Dados importados recebidos (${importedData.length} caracteres):")
-            importedData.chunked(LOG_CHUNK_SIZE).forEach { chunk ->
-                Log.d(TAG, chunk)
-            }
-        }.onFailure { error ->
-            Log.e(TAG, "Falha ao processar deep link de importacao: $uri", error)
         }
     }
 
-    private fun decodeBase64(data: String): ByteArray {
-        val normalizedData = data.trim()
-        val isBase64Url = normalizedData.any { it == '-' || it == '_' }
-
-        val flags = if (isBase64Url) {
-            Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING
-        } else {
-            Base64.DEFAULT
-        }
-
-        val valueToDecode = if (isBase64Url) {
-            normalizedData
-        } else {
-            normalizedData.replace(' ', '+')
-        }.withBase64Padding()
-
-        return Base64.decode(valueToDecode, flags)
+    private fun onWebViewCreated(webView: WebView) {
+        webViewNotifier.attach(webView)
     }
 
-    private fun String.withBase64Padding(): String {
-        val missingPadding = (4 - length % 4) % 4
-        return this + "=".repeat(missingPadding)
+    private fun onWebViewPageLoaded(webView: WebView) {
+        webViewNotifier.onPageLoaded(webView)
+    }
+
+    private fun successMessageFor(importType: String): String {
+        return when (importType) {
+            DECKS_IMPORT_TYPE -> "Sucesso ao importar decks"
+            CARDS_IMPORT_TYPE -> "Sucesso ao importar cards"
+            else -> "Importacao concluida"
+        }
     }
 
     companion object {
-        private const val TAG = "FlashcardImport"
-        private const val LOG_CHUNK_SIZE = 3_000
+        private const val DECKS_IMPORT_TYPE = "decks"
+        private const val CARDS_IMPORT_TYPE = "cards"
     }
 
 }
 
 @Composable
-fun WebViewScreen(url: String) {
+fun WebViewScreen(
+    url: String,
+    onWebViewCreated: (WebView) -> Unit = {},
+    onPageLoaded: (WebView) -> Unit = {}
+) {
     AndroidView(
         modifier = Modifier.fillMaxSize(),
         factory = { context ->
             WebView(context).apply {
+                onWebViewCreated(this)
 
                 layoutParams = android.view.ViewGroup.LayoutParams(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT
                 )
-                webViewClient = WebViewClient()
+                webViewClient = object : WebViewClient() {
+                    override fun onPageFinished(view: WebView, url: String?) {
+                        super.onPageFinished(view, url)
+                        onPageLoaded(view)
+                    }
+                }
                 val webSettings = settings
 
                 webSettings.javaScriptEnabled = true

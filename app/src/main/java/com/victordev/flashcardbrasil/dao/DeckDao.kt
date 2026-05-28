@@ -15,6 +15,9 @@ interface DeckDao {
     @Insert
     suspend fun insertDeck(deck: DeckEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertDecks(decks: List<DeckEntity>)
+
     @Query("SELECT * FROM controle WHERE `key` = 'controle_flashcards' LIMIT 1")
     suspend fun getControle(): ControleEntity?
 
@@ -35,6 +38,6 @@ interface DeckDao {
     @Query("DELETE FROM decks WHERE flashcardId = :deckId")
     suspend fun deleteDeckById(deckId: String) : Int
 
-    @Query("UPDATE decks SET qtdCartoes = (SELECT COUNT(*) FROM cards WHERE flashcardId = :deckId)")
+    @Query("UPDATE decks SET qtdCartoes = (SELECT COUNT(*) FROM cards WHERE flashcardId = :deckId) WHERE flashcardId = :deckId")
     suspend fun updateDeckCardsCount(deckId: String)
 }

@@ -13,6 +13,9 @@ interface CardDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertCard(card: CardEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCards(cards: List<CardEntity>)
+
     @Update
     suspend fun updateCard(card: CardEntity)
 

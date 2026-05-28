@@ -46,6 +46,32 @@ class CardService (private val db: AppDatabase) {
         cardDao.getCards(deckId)
     }
 
+    suspend fun importCards(cards: List<CardEntity>): Int = withContext(Dispatchers.IO) {
+        cards.forEach { card ->
+            if (card.cardId.isBlank()) {
+                throw Exception("ID do card nao pode ser vazio")
+            }
+
+            if (card.flashCardId.isBlank()) {
+                throw Exception("ID do deck nao pode ser vazio")
+            }
+
+            if (card.question.isBlank()) {
+                throw Exception("Pergunta do card nao pode ser vazia")
+            }
+
+            if (card.answer.isBlank()) {
+                throw Exception("Resposta do card nao pode ser vazia")
+            }
+        }
+
+        cardDao.upsertCards(cards)
+        cards.map { it.flashCardId }.distinct().forEach { deckId ->
+            deckDao.updateDeckCardsCount(deckId)
+        }
+        cards.size
+    }
+
     suspend fun deleteCard(deckId: String, cardId: String) {
         cardDao.deleteCard(deckId, cardId)
         deckDao.updateDeckCardsCount(deckId)
