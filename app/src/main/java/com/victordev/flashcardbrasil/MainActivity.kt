@@ -36,6 +36,7 @@ import com.victordev.flashcardbrasil.core.importing.FlashcardQrImportHandler
 import com.victordev.flashcardbrasil.core.importing.QrImportResult
 import com.victordev.flashcardbrasil.core.service.GuestService
 import com.victordev.flashcardbrasil.core.webview.WebViewNotifier
+import com.victordev.flashcardbrasil.reminders.ReviewReminderInitializer
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -59,6 +60,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        ReviewReminderInitializer.initialize(this)
         handleImportIntent(intent)
         // Garante que o layout ocupe a tela toda corretamente
 

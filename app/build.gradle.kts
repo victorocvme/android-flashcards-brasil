@@ -20,6 +20,9 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField("Boolean", "REVIEW_REMINDERS_TEST_MODE", "false")
+        buildConfigField("Long", "REVIEW_REMINDER_REPEAT_MINUTES", "300L")
     }
 
     buildTypes {
@@ -58,6 +61,12 @@ android {
             )
 
             resValue("string", "app_name", "FlashCards Brasil - Debug")
+
+            // Para testar notificacoes em desenvolvimento:
+            // 1. troque REVIEW_REMINDERS_TEST_MODE para true
+            // 2. troque REVIEW_REMINDER_REPEAT_MINUTES para 1L
+            buildConfigField("Boolean", "REVIEW_REMINDERS_TEST_MODE", "true")
+            buildConfigField("Long", "REVIEW_REMINDER_REPEAT_MINUTES", "1L")
         }
 
         create("prod") {
@@ -74,6 +83,9 @@ android {
                 "app_name",
                 "FlashCards Brasil"
             )
+
+            buildConfigField("Boolean", "REVIEW_REMINDERS_TEST_MODE", "false")
+            buildConfigField("Long", "REVIEW_REMINDER_REPEAT_MINUTES", "300L")
         }
     }
 }

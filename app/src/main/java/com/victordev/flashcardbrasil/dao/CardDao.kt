@@ -22,6 +22,9 @@ interface CardDao {
     @Query("SELECT * FROM cards WHERE flashCardId = :deckId AND proximaRevisao <= :hojeRelativo LIMIT 10")
     suspend fun getCardsForReview(deckId: String, hojeRelativo: Int): List<CardEntity>
 
+    @Query("SELECT COUNT(*) FROM cards WHERE proximaRevisao <= :hojeRelativo")
+    suspend fun countCardsForReview(hojeRelativo: Int): Int
+
     @Query("SELECT * FROM cards WHERE cardId = :cardId")
     suspend fun getCardById(cardId: String): CardEntity?
 
