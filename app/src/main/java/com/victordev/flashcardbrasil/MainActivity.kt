@@ -36,6 +36,7 @@ import com.victordev.flashcardbrasil.core.importing.FlashcardQrImportHandler
 import com.victordev.flashcardbrasil.core.importing.QrImportResult
 import com.victordev.flashcardbrasil.core.service.GuestService
 import com.victordev.flashcardbrasil.core.webview.WebViewNotifier
+import com.victordev.flashcardbrasil.features.user_preferences.UserPreferencesBridge
 import com.victordev.flashcardbrasil.reminders.ReviewReminderInitializer
 import kotlinx.coroutines.launch
 
@@ -100,7 +101,7 @@ class MainActivity : ComponentActivity() {
 
                 else -> {
                     val url = if (BuildConfig.DEBUG) {
-                        "http://192.168.1.106:4200"
+                        "http://192.168.1.102:4200"
                     } else {
                         "file://${filesDir.absolutePath}/www/index.html"
                     }
@@ -221,6 +222,7 @@ fun WebViewScreen(
                 addJavascriptInterface(CardsBridge(cardService), "CardApi")
                 addJavascriptInterface(EmptyBridge(), "Android")
                 addJavascriptInterface(GuestBridge(GuestService(context)), "Guest")
+                addJavascriptInterface(UserPreferencesBridge(context), "Preferences")
                 loadUrl(finalUrl)
             }
         }

@@ -2,7 +2,11 @@ package com.victordev.flashcardbrasil.core.bridges
 
 import android.webkit.JavascriptInterface
 import com.victordev.flashcardbrasil.core.service.CardService
+import com.victordev.flashcardbrasil.core.service.UpsertCardRequest
 import com.google.gson.Gson;
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 
@@ -69,6 +73,20 @@ class CardsBridge(private val cardService: CardService) {
     }
 
     @JavascriptInterface
+    fun upsertCards(json: String): String {
+        return runBlocking {
+            try {
+                val cards = parseUpsertCards(json)
+                val upsertedCount = cardService.upsertCards(cards)
+
+                "{\"status\": 200, \"upserted\": $upsertedCount}"
+            } catch (e: Exception) {
+                "{\"status\": 500, \"message\": \"${e.localizedMessage}\"}"
+            }
+        }
+    }
+
+    @JavascriptInterface
     fun deleteCard(deckId: String, cardId: String) : Boolean {
         return try {
             runBlocking {
@@ -78,6 +96,47 @@ class CardsBridge(private val cardService: CardService) {
         } catch (e: Exception) {
             false
         }
+    }
+
+    private fun parseUpsertCards(json: String): List<UpsertCardRequest> {
+        val root = JsonParser.parseString(json)
+        val defaultDeckId = root.asJsonObjectOrNull()
+            ?.getStringOrNull("flashCardId")
+            ?: root.asJsonObjectOrNull()?.getStringOrNull("flashcardId")
+
+        val cardsElement = when {
+            root.isJsonArray -> root
+            root.asJsonObjectOrNull()?.has("cards") == true -> root.asJsonObject.get("cards")
+            else -> throw IllegalArgumentException("JSON deve ser uma lista de cards ou conter a propriedade cards")
+        }
+
+        if (!cardsElement.isJsonArray) {
+            throw IllegalArgumentException("cards deve ser uma lista")
+        }
+
+        return cardsElement.asJsonArray.map { cardElement ->
+            val card = cardElement.asJsonObject
+            val deckId = card.getStringOrNull("flashCardId")
+                ?: card.getStringOrNull("flashcardId")
+                ?: defaultDeckId
+
+            UpsertCardRequest(
+                cardId = card.getStringOrNull("cardId"),
+                flashCardId = deckId,
+                question = card.getStringOrNull("question").orEmpty(),
+                answer = card.getStringOrNull("answer").orEmpty()
+            )
+        }
+    }
+
+    private fun JsonElement.asJsonObjectOrNull(): JsonObject? {
+        return if (isJsonObject) asJsonObject else null
+    }
+
+    private fun JsonObject.getStringOrNull(key: String): String? {
+        val value = get(key) ?: return null
+        if (value.isJsonNull) return null
+        return value.asString.takeIf { it.isNotBlank() }
     }
 }
 
